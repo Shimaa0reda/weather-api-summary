@@ -1,52 +1,61 @@
 import os
-from dataclasses import dataclass
 import requests
 from dotenv import load_dotenv
 
-# Load environment variables from .env
+# load the api key from the .env file
 load_dotenv()
+api_key = os.getenv("WEATHER_API_KEY")
 
 
-@dataclass
-class WeatherReport:
-    city: str
-    condition: str
-    temp_c: float
-    humidity: int
+# simple class to store the weather info
+class Weather:
+    def __init__(self, city, description, temp, humidity):
+        self.city = city
+        self.description = description
+        self.temp = temp
+        self.humidity = humidity
 
-    def summary(self) -> str:
-        return (
-            f"--- Weather Summary for {self.city} ---\n"
-            f"Condition : {self.condition.capitalize()}\n"
-            f"Temp      : {self.temp_c:.1f}°C\n"
-            f"Humidity  : {self.humidity}%"
-        )
+    def show_summary(self):
+        print(f"\nWeather in {self.city}:")
+        print(f"- Condition: {self.description}")
+        print(f"- Temperature: {self.temp} C")
+        print(f"- Humidity: {self.humidity}%")
 
 
-def fetch_weather(city: str, api_key: str) -> WeatherReport:
+# function to get data from the weather API
+def get_weather(city_name):
     url = "https://api.openweathermap.org/data/2.5/weather"
     params = {
-        "q": city,
+        "q": city_name,
         "appid": api_key,
-        "units": "metric",
+        "units": "metric"
     }
 
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()  # Raises an HTTPError for 4xx/5xx responses
-    data = response.json()
+    response = requests.get(url, params=params)
+    
+    # check if the request worked
+    if response.status_code == 200:
+        data = response.json()
+        
+        # pull the data we need from json
+        city = data["name"]
+        desc = data["weather"][0]["description"]
+        temp = data["main"]["temp"]
+        humidity = data["main"]["humidity"]
+        
+        # save it in our class and return it
+        weather_obj = Weather(city, desc, temp, humidity)
+        return weather_obj
+    else:
+        print("Error: Could not get weather data. Check your API key.")
+        return None
 
-    return WeatherReport(
-        city=data["name"],
-        condition=data["weather"][0]["description"],
-        temp_c=data["main"]["temp"],
-        humidity=data["main"]["humidity"],
-    )
 
-
+# run the program
 if __name__ == "__main__":
-    api_key = os.getenv("WEATHER_API_KEY")
     if not api_key:
-        raise RuntimeError("WEATHER_API_KEY not found in .env file.")
-
-    report = fetch_weather("Cairo", api_key)
-    print(report.summary())
+        print("Please add your API key in the .env file first!")
+    else:
+        my_weather = get_weather("Cairo")
+        if my_weather:
+            my_weather.show_summary()
